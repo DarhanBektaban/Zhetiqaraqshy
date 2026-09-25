@@ -9,54 +9,68 @@
     body { background: #02040a; overflow: hidden; font-family: -apple-system, sans-serif; color: #fef08a; }
     #canvas3d { position: absolute; inset: 0; width: 100vw; height: 100vh; }
     
-    .hud {
-      position: absolute; top: 15px; left: 0; right: 0;
-      display: flex; justify-content: center; pointer-events: none; z-index: 10;
+    /* Жоғарғы бағдаршам мен компас */
+    .hud-top {
+      position: absolute; top: 12px; left: 0; right: 0;
+      display: flex; flex-direction: column; align-items: center;
+      gap: 6px; pointer-events: none; z-index: 10;
     }
     .badge {
-      background: rgba(10, 16, 38, 0.85);
+      background: rgba(10, 16, 38, 0.88);
       border: 1px solid rgba(251, 191, 36, 0.5);
       backdrop-filter: blur(10px);
-      padding: 8px 18px; border-radius: 20px; font-size: 13px;
+      padding: 6px 16px; border-radius: 20px; font-size: 13px;
+    }
+    .compass-hint {
+      background: rgba(18, 26, 56, 0.85);
+      border: 1px solid #fbbf24;
+      padding: 5px 14px; border-radius: 12px; font-size: 12px;
+      color: #38bdf8; font-weight: bold;
+      display: flex; align-items: center; gap: 8px;
     }
 
+    /* Басқару интерфейсі (Мобильді + Компьютер) */
     .controls {
-      position: absolute; bottom: 25px; left: 0; right: 0;
-      display: flex; justify-content: space-between; padding: 0 25px;
+      position: absolute; bottom: 15px; left: 0; right: 0;
+      display: flex; justify-content: space-between; padding: 0 15px;
       z-index: 10; pointer-events: none;
     }
-    .btn-row { display: flex; gap: 12px; pointer-events: auto; }
+    .btn-group { display: flex; gap: 8px; pointer-events: auto; }
+    .col-group { display: flex; flex-direction: column; gap: 8px; pointer-events: auto; }
+    
     .c-btn {
-      width: 56px; height: 56px; border-radius: 50%;
+      width: 52px; height: 52px; border-radius: 50%;
       background: rgba(18, 26, 56, 0.85); border: 2px solid #fbbf24;
-      color: #fef08a; font-size: 20px; display: flex; align-items: center; justify-content: center;
+      color: #fef08a; font-size: 18px; display: flex; align-items: center; justify-content: center;
       cursor: pointer;
     }
     .c-btn:active { background: #fbbf24; color: #000; transform: scale(0.92); }
-    .gas-btn { width: 76px; border-radius: 28px; font-size: 13px; font-weight: bold; }
+    .gas-btn { width: 68px; border-radius: 24px; font-size: 12px; font-weight: bold; }
+    .vert-btn { width: 48px; height: 42px; border-radius: 12px; font-size: 11px; font-weight: bold; }
 
     #infoModal {
       position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      background: rgba(12, 18, 40, 0.95); backdrop-filter: blur(14px);
-      border: 1.5px solid #fbbf24; border-radius: 16px; padding: 20px;
+      background: rgba(12, 18, 40, 0.96); backdrop-filter: blur(14px);
+      border: 2px solid #fbbf24; border-radius: 16px; padding: 22px;
       width: 88%; max-width: 360px; text-align: center; display: none; z-index: 50;
     }
     #infoModal h3 { color: #fbbf24; font-size: 18px; margin-bottom: 8px; }
     #infoModal p { color: #e2e8f0; font-size: 13px; line-height: 1.5; margin-bottom: 16px; }
     #infoModal button {
       background: #fbbf24; border: none; color: #050816; font-weight: bold;
-      padding: 8px 22px; border-radius: 20px; font-size: 13px; cursor: pointer;
+      padding: 8px 24px; border-radius: 20px; font-size: 13px; cursor: pointer;
     }
   </style>
-  <!-- Three.js 3D қозғалтқышы (CDN арқылы жылдам жүктеледі) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
   <div id="canvas3d"></div>
 
-  <div class="hud">
+  <!-- Бағдаршам / Компас (Адастырмас үшін) -->
+  <div class="hud-top">
     <div class="badge">✨ 3D Зерттеу: <strong id="counterText" style="color: #38bdf8;">0 / 7</strong></div>
+    <div class="compass-hint" id="compassHint">🧭 БАҒЫТ: 1. Күш (200м)</div>
   </div>
 
   <div id="infoModal">
@@ -65,115 +79,152 @@
     <button onclick="closeModal()">Сапарды жалғастыру</button>
   </div>
 
+  <!-- 3D Толық басқару: Оң/Сол, Жоғары/Төмен, Ұшу -->
   <div class="controls">
-    <div class="btn-row">
+    <div class="btn-group">
       <div class="c-btn" id="leftBtn">◄</div>
       <div class="c-btn" id="rightBtn">►</div>
     </div>
-    <div class="btn-row">
+    
+    <!-- Жоғары / Төмен биіктік батырмалары -->
+    <div class="col-group">
+      <div class="c-btn vert-btn" id="upBtn">▲ ҮСТІ</div>
+      <div class="c-btn vert-btn" id="downBtn">▼ АСТЫ</div>
+    </div>
+
+    <div class="btn-group">
       <div class="c-btn gas-btn" id="gasBtn">ҰШУ</div>
     </div>
   </div>
 
   <script>
-    // 1. THREE.JS 3D САХНАСЫ
+    // 1. САХНА ЖӘНЕ КАМЕРА
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x040714, 0.0015);
+    scene.fog = new THREE.FogExp2(0x030614, 0.0012);
 
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2500);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     document.getElementById("canvas3d").appendChild(renderer.domElement);
 
-    // Жарықтандыру
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
     scene.add(ambientLight);
-    const dirLight = new THREE.DirectionalLight(0xfef08a, 1.2);
-    dirLight.position.set(50, 100, 50);
-    scene.add(dirLight);
+    const sunLight = new THREE.DirectionalLight(0xfef08a, 1.4);
+    sunLight.position.set(60, 100, 40);
+    scene.add(sunLight);
 
-    // 2. 3D САНДЫҚ-КЕМЕНІ ҚҰРАСТЫРУ
+    // 2. ҚАЗАҚИ «ҚОШҚАР МҮЙІЗ» ОЮЫ БАР АЛТЫН ТЕКСТУРА ЖАСАУ (Программалық)
+    function createOrnamentTexture() {
+      const cvs = document.createElement("canvas");
+      cvs.width = 512;
+      cvs.height = 512;
+      const c = cvs.getContext("2d");
+
+      // Көне жылтыр қара-қоңыр ағаш негіз
+      c.fillStyle = "#2c1404";
+      c.fillRect(0, 0, 512, 512);
+
+      // Алтын жақтау
+      c.strokeStyle = "#fbbf24";
+      c.lineWidth = 14;
+      c.strokeRect(10, 10, 492, 492);
+
+      // Орталық «Қошқар мүйіз» оюы
+      c.strokeStyle = "#fbbf24";
+      c.lineWidth = 16;
+      c.lineCap = "round";
+
+      c.translate(256, 256);
+      for (let rot = 0; rot < 2; rot++) {
+        c.rotate(Math.PI);
+        // Сол мүйіз
+        c.beginPath();
+        c.moveTo(0, 0);
+        c.bezierCurveTo(-50, -80, -140, -80, -140, -10);
+        c.bezierCurveTo(-140, 50, -80, 50, -80, 10);
+        c.bezierCurveTo(-80, -20, -110, -20, -110, -10);
+        c.stroke();
+
+        // Оң мүйіз
+        c.beginPath();
+        c.moveTo(0, 0);
+        c.bezierCurveTo(50, -80, 140, -80, 140, -10);
+        c.bezierCurveTo(140, 50, 80, 50, 80, 10);
+        c.bezierCurveTo(80, -20, 110, -20, 110, -10);
+        c.stroke();
+      }
+
+      return new THREE.CanvasTexture(cvs);
+    }
+
+    const ornamentTex = createOrnamentTexture();
+
+    // 3. 3D ОЮЛЫ САНДЫҚ-КЕМЕ
     const shipGroup = new THREE.Group();
 
-    // Сандықтың ағаш негізі
-    const chestGeo = new THREE.BoxGeometry(2.4, 1.6, 3.4);
-    const woodMat = new THREE.MeshStandardMaterial({ color: 0x3d1d06, roughness: 0.6, metalness: 0.2 });
-    const chestMesh = new THREE.Mesh(chestGeo, woodMat);
+    // Сандық қақпағында оюы бар материал
+    const chestMats = [
+      new THREE.MeshStandardMaterial({ map: ornamentTex, roughness: 0.4 }), // Оң
+      new THREE.MeshStandardMaterial({ map: ornamentTex, roughness: 0.4 }), // Сол
+      new THREE.MeshStandardMaterial({ map: ornamentTex, roughness: 0.3, metalness: 0.2 }), // ҮСТІ (ОЮ)
+      new THREE.MeshStandardMaterial({ color: 0x1f0c02 }), // Асты
+      new THREE.MeshStandardMaterial({ map: ornamentTex, roughness: 0.4 }), // Алды
+      new THREE.MeshStandardMaterial({ color: 0x1f0c02 })  // Арты
+    ];
+    const chestMesh = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.6, 3.4), chestMats);
     shipGroup.add(chestMesh);
 
-    // Алтын құрсаулар (Белдіктер)
+    // Алтын оюлы қанаттар
     const goldMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.8, roughness: 0.3 });
-    const ringGeo = new THREE.BoxGeometry(2.45, 1.65, 0.4);
-    const ringMesh = new THREE.Mesh(ringGeo, goldMat);
-    shipGroup.add(ringMesh);
-
-    // Сандықтың оюлы алтын қанаттары (Екі бүйірінде)
-    const wingGeo = new THREE.BoxGeometry(1.6, 0.1, 1.4);
+    const wingGeo = new THREE.BoxGeometry(1.8, 0.1, 1.4);
     const leftWing = new THREE.Mesh(wingGeo, goldMat);
-    leftWing.position.set(-1.8, 0, 0.3);
-    leftWing.rotation.z = -0.2;
+    leftWing.position.set(-1.9, 0, 0.3);
+    leftWing.rotation.z = -0.15;
     shipGroup.add(leftWing);
 
     const rightWing = new THREE.Mesh(wingGeo, goldMat);
-    rightWing.position.set(1.8, 0, 0.3);
-    rightWing.rotation.z = 0.2;
+    rightWing.position.set(1.9, 0, 0.3);
+    rightWing.rotation.z = 0.15;
     shipGroup.add(rightWing);
 
-    // Қос қозғалтқыш оттары
+    // Қос қозғалтқыштың плазмасы
     const flameMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
-    const flameGeo = new THREE.ConeGeometry(0.3, 1.2, 8);
+    const flameGeo = new THREE.ConeGeometry(0.32, 1.4, 8);
     flameGeo.rotateX(-Math.PI / 2);
 
     const leftFlame = new THREE.Mesh(flameGeo, flameMat);
-    leftFlame.position.set(-0.7, 0, 2.2);
+    leftFlame.position.set(-0.7, 0, 2.3);
     shipGroup.add(leftFlame);
 
     const rightFlame = new THREE.Mesh(flameGeo, flameMat);
-    rightFlame.position.set(0.7, 0, 2.2);
+    rightFlame.position.set(0.7, 0, 2.3);
     shipGroup.add(rightFlame);
 
     scene.add(shipGroup);
-    shipGroup.position.set(0, 0, 120);
+    shipGroup.position.set(0, 0, 110);
 
-    // 3. ҒАРЫШТАҒЫ ЖҰЛДЫЗДАР ТОЗАҢЫ (Фон)
-    const starCount = 1200;
-    const starGeo = new THREE.BufferGeometry();
-    const starCoords = [];
-    for(let i=0; i<starCount; i++) {
-      starCoords.push(
-        (Math.random() - 0.5) * 1000,
-        (Math.random() - 0.5) * 600,
-        (Math.random() - 0.5) * 1000
-      );
-    }
-    starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starCoords, 3));
-    const starMat = new THREE.PointsMaterial({ color: 0xfef08a, size: 1.6, transparent: true, opacity: 0.8 });
-    const bgStarField = new THREE.Points(starGeo, starMat);
-    scene.add(bgStarField);
-
-    // 4. ТЕМІРҚАЗЫҚ ПЕН ЖЕТІҚАРАҚШЫ 3D ЖҰЛДЫЗДАРЫ
+    // 4. ТЕМІРҚАЗЫҚ ЖӘНЕ ЖЕТІҚАРАҚШЫ (3D ЖҰЛДЫЗДАР)
     const starSpheres = [];
     const rawStars = [
       { name: "1. Күш", x: -60, y: 15, z: 20, desc: "Шөміштің шеткі күзетшісі. Жігермен бірге Темірқазықты тура көрсетеді." },
-      { name: "2. Жігер", x: -65, y: 10, z: -25, desc: "Шөміштің түбіндегі орнықты жұлдыз. Бағдар нұсқаушы." },
-      { name: "3. Қайрат", x: -20, y: 5, z: -30, desc: "Шөміш табағының мықты тұғыры." },
-      { name: "4. Қуат", x: -15, y: 12, z: 15, desc: "Ожау мен сапты байланыстырып тұрған қуатты түйін." },
-      { name: "5. Ырық", x: 25, y: 8, z: 30, desc: "Саптың бастауы, шоқтың ең жарық әрі ырықты жұлдызы." },
-      { name: "6. Ерік", x: 60, y: 14, z: 50, desc: "Сап ортасы. Қасында Балапан жұлдызы бар." },
-      { name: "7. Дес (Шұнақ)", x: 95, y: 20, z: 75, desc: "Саптың ең ұшы. Түнгі мезгілді өлшейтін аспан сағаты." }
+      { name: "2. Жігер", x: -65, y: 0, z: -25, desc: "Шөміштің түбіндегі орнықты жұлдыз. Бағдар нұсқаушы." },
+      { name: "3. Қайрат", x: -20, y: -10, z: -30, desc: "Шөміш табағының мықты тұғыры." },
+      { name: "4. Қуат", x: -15, y: 10, z: 15, desc: "Ожау мен сапты байланыстырып тұрған қуатты түйін." },
+      { name: "5. Ырық", x: 25, y: 5, z: 30, desc: "Саптың бастауы, шоқтың ең жарық әрі ырықты жұлдызы." },
+      { name: "6. Ерік", x: 60, y: 18, z: 50, desc: "Сап ортасы. Қасында Балапан жұлдызы бар." },
+      { name: "7. Дес (Шұнақ)", x: 95, y: 25, z: 75, desc: "Саптың ең ұшы. Түнгі мезгілді өлшейтін аспан сағаты." }
     ];
 
-    const starSphereGeo = new THREE.SphereGeometry(2.5, 16, 16);
+    const starSphereGeo = new THREE.SphereGeometry(2.6, 16, 16);
     rawStars.forEach(s => {
-      const mat = new THREE.MeshBasicMaterial({ color: 0xfbbf24 });
-      const sphere = new THREE.Mesh(starSphereGeo, mat);
+      const sphere = new THREE.Mesh(starSphereGeo, new THREE.MeshBasicMaterial({ color: 0xfbbf24 }));
       sphere.position.set(s.x, s.y, s.z);
       scene.add(sphere);
       starSpheres.push({ mesh: sphere, data: s, visited: false });
     });
 
-    // Шөміш сызығын 3D сызу
+    // Шөміш сызықтары
     const lineMat = new THREE.LineBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.35 });
     const linePoints = [
       new THREE.Vector3(rawStars[0].x, rawStars[0].y, rawStars[0].z),
@@ -186,38 +237,53 @@
       new THREE.Vector3(rawStars[5].x, rawStars[5].y, rawStars[5].z),
       new THREE.Vector3(rawStars[6].x, rawStars[6].y, rawStars[6].z),
     ];
-    const lineGeo = new THREE.BufferGeometry().setFromPoints(linePoints);
-    scene.add(new THREE.Line(lineGeo, lineMat));
+    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(linePoints), lineMat));
 
-    // Темірқазық (Үлкен алтын шар)
-    const poleMat = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
-    const poleMesh = new THREE.Mesh(new THREE.SphereGeometry(4, 20, 20), poleMat);
-    poleMesh.position.set(-60, 25, 120);
+    // Темірқазық (Үлкен алтын шамшырақ)
+    const poleMesh = new THREE.Mesh(new THREE.SphereGeometry(4.5, 20, 20), new THREE.MeshBasicMaterial({ color: 0xfacc15 }));
+    poleMesh.position.set(-60, 30, 115);
     scene.add(poleMesh);
 
-    // 5. БАСҚАРУ ЖӘНЕ ФИЗИКА
+    // Ғарыш тозаңы фоны
+    const starCoords = [];
+    for(let i=0; i<1200; i++) {
+      starCoords.push((Math.random()-0.5)*1000, (Math.random()-0.5)*500, (Math.random()-0.5)*1000);
+    }
+    const bgGeo = new THREE.BufferGeometry();
+    bgGeo.setAttribute('position', new THREE.Float32BufferAttribute(starCoords, 3));
+    scene.add(new THREE.Points(bgGeo, new THREE.PointsMaterial({ color: 0xfef08a, size: 1.5, transparent: true, opacity: 0.7 })));
+
+    // 5. ТОЛЫҚ БАСҚАРУ ЖӘНЕ НАВИГАЦИЯ
     let speed = 0;
-    let turnAngle = 0;
-    let rollAngle = 0;
+    let turnAngle = 0;   // Сол/Оң (Yaw)
+    let pitchAngle = 0;  // Жоғары/Төмен (Pitch)
+    let rollAngle = 0;   // Қисаю (Roll)
+
     let isThrusting = false;
-    let turnLeft = false;
-    let turnRight = false;
+    let turnLeft = false, turnRight = false;
+    let moveUp = false, moveDown = false;
     let visitedCount = 0;
     let isPaused = false;
 
     // Пернетақта
     window.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowLeft" || e.key === "a") turnLeft = true;
-      if (e.key === "ArrowRight" || e.key === "d") turnRight = true;
-      if (e.key === "ArrowUp" || e.key === "w") isThrusting = true;
+      const k = e.key.toLowerCase();
+      if (k === "arrowleft" || k === "a") turnLeft = true;
+      if (k === "arrowright" || k === "d") turnRight = true;
+      if (k === "arrowup" || k === "w") isThrusting = true;
+      if (k === "r" || k === "shift") moveUp = true;
+      if (k === "f" || k === "control") moveDown = true;
     });
     window.addEventListener("keyup", (e) => {
-      if (e.key === "ArrowLeft" || e.key === "a") turnLeft = false;
-      if (e.key === "ArrowRight" || e.key === "d") turnRight = false;
-      if (e.key === "ArrowUp" || e.key === "w") isThrusting = false;
+      const k = e.key.toLowerCase();
+      if (k === "arrowleft" || k === "a") turnLeft = false;
+      if (k === "arrowright" || k === "d") turnRight = false;
+      if (k === "arrowup" || k === "w") isThrusting = false;
+      if (k === "r" || k === "shift") moveUp = false;
+      if (k === "f" || k === "control") moveDown = false;
     });
 
-    // Экрандағы батырмалар
+    // Экрандағы сенсор батырмалар
     const bindBtn = (id, onDown, onUp) => {
       const el = document.getElementById(id);
       el.addEventListener("pointerdown", (e) => { e.stopPropagation(); onDown(); });
@@ -226,6 +292,8 @@
     };
     bindBtn("leftBtn", () => turnLeft = true, () => turnLeft = false);
     bindBtn("rightBtn", () => turnRight = true, () => turnRight = false);
+    bindBtn("upBtn", () => moveUp = true, () => moveUp = false);
+    bindBtn("downBtn", () => moveDown = true, () => moveDown = false);
     bindBtn("gasBtn", () => isThrusting = true, () => isThrusting = false);
 
     function closeModal() {
@@ -233,12 +301,12 @@
       isPaused = false;
     }
 
-    // 6. НЕГІЗГІ ОЙЫН ЦИКЛІ
+    // 6. ОЙЫН ЦИКЛІ ЖӘНЕ КОМПАС
     function animate() {
       requestAnimationFrame(animate);
 
       if (!isPaused) {
-        // Бұрылу және 3D қисаю (Bank roll)
+        // Оңға / Солға бұрылу
         if (turnLeft) {
           turnAngle += 0.03;
           rollAngle = THREE.MathUtils.lerp(rollAngle, 0.4, 0.1);
@@ -249,37 +317,56 @@
           rollAngle = THREE.MathUtils.lerp(rollAngle, 0, 0.1);
         }
 
-        // Жылдамдық
-        if (isThrusting) {
-          speed = THREE.MathUtils.lerp(speed, 1.2, 0.05);
-          leftFlame.scale.set(1, 1.8 + Math.random()*0.5, 1);
-          rightFlame.scale.set(1, 1.8 + Math.random()*0.5, 1);
+        // Жоғары / Төмен еңкею (Pitch)
+        if (moveUp) {
+          pitchAngle = THREE.MathUtils.lerp(pitchAngle, 0.35, 0.08);
+          shipGroup.position.y += 0.4;
+        } else if (moveDown) {
+          pitchAngle = THREE.MathUtils.lerp(pitchAngle, -0.35, 0.08);
+          shipGroup.position.y -= 0.4;
         } else {
-          speed = THREE.MathUtils.lerp(speed, 0.1, 0.03);
-          leftFlame.scale.set(0.6, 0.6, 0.6);
-          rightFlame.scale.set(0.6, 0.6, 0.6);
+          pitchAngle = THREE.MathUtils.lerp(pitchAngle, 0, 0.08);
+        }
+
+        // Ұшу жылдамдығы
+        if (isThrusting) {
+          speed = THREE.MathUtils.lerp(speed, 1.3, 0.06);
+          leftFlame.scale.set(1, 2 + Math.random()*0.4, 1);
+          rightFlame.scale.set(1, 2 + Math.random()*0.4, 1);
+        } else {
+          speed = THREE.MathUtils.lerp(speed, 0.08, 0.03);
+          leftFlame.scale.set(0.5, 0.5, 0.5);
+          rightFlame.scale.set(0.5, 0.5, 0.5);
         }
 
         // Кеменің координатасын бағытқа сай алға жылжыту
         shipGroup.position.x -= Math.sin(turnAngle) * speed;
         shipGroup.position.z -= Math.cos(turnAngle) * speed;
 
-        // Кеменің 3D ротациясы
-        shipGroup.rotation.y = turnAngle;
-        shipGroup.rotation.z = rollAngle;
+        // Кеменің 3D ротациясын орнату
+        shipGroup.rotation.set(pitchAngle, turnAngle, rollAngle, 'YXZ');
 
-        // Камера кеменің артынан 3D еріп отырады
-        camera.position.x = shipGroup.position.x + Math.sin(turnAngle) * 22;
-        camera.position.z = shipGroup.position.z + Math.cos(turnAngle) * 22;
-        camera.position.y = shipGroup.position.y + 9;
+        // Камера кеменің артынан ілеседі
+        camera.position.x = shipGroup.position.x + Math.sin(turnAngle) * 20;
+        camera.position.z = shipGroup.position.z + Math.cos(turnAngle) * 20;
+        camera.position.y = shipGroup.position.y + 8 - pitchAngle * 8;
         camera.lookAt(shipGroup.position.x, shipGroup.position.y + 1, shipGroup.position.z);
+
+        // КЕЛЕСІ АШЫЛМАҒАН ЖҰЛДЫЗҒА АДАСТЫРМАЙТЫН КОМПАС ЕСЕПТЕУ
+        const nextStar = starSpheres.find(s => !s.visited);
+        if (nextStar) {
+          const dist = Math.round(shipGroup.position.distanceTo(nextStar.mesh.position));
+          document.getElementById("compassHint").innerText = `🧭 БАҒЫТ: ${nextStar.data.name} (${dist} қашықтық)`;
+        } else {
+          document.getElementById("compassHint").innerText = `🎉 Барлық жұлдыз зерттелді!`;
+        }
 
         // Жұлдызға жақындауды тексеру
         starSpheres.forEach(s => {
           const dist = shipGroup.position.distanceTo(s.mesh.position);
-          if (dist < 8 && !s.visited) {
+          if (dist < 9 && !s.visited) {
             s.visited = true;
-            s.mesh.material.color.setHex(0x38bdf8); // Көгілдір болып жанады
+            s.mesh.material.color.setHex(0x38bdf8);
             visitedCount++;
             document.getElementById("counterText").innerText = `${visitedCount} / 7`;
             isPaused = true;
