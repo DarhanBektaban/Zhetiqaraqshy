@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Zhetiqaraqshy 3D — Сандық Саяхаты</title>
+  <title>Zhetiqaraqshy 3D — Sandyq Sajahaty</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; touch-action: none; }
     body { background: #02040a; overflow: hidden; font-family: -apple-system, sans-serif; color: #fef08a; }
@@ -69,14 +69,14 @@
 
   <!-- Бағдаршам / Компас (Адастырмас үшін) -->
   <div class="hud-top">
-    <div class="badge">✨ 3D Зерттеу: <strong id="counterText" style="color: #38bdf8;">0 / 7</strong></div>
-    <div class="compass-hint" id="compassHint">🧭 БАҒЫТ: 1. Күш (200м)</div>
+    <div class="badge">✨ 3D Zertteuu: <strong id="counterText" style="color: #38bdf8;">0 / 7</strong></div>
+    <div class="compass-hint" id="compassHint">🧭 BAGHYT: 1. Kuish (200m)</div>
   </div>
 
   <div id="infoModal">
-    <h3 id="modalTitle">Жұлдыз</h3>
-    <p id="modalDesc">Мәлімет...</p>
-    <button onclick="closeModal()">Сапарды жалғастыру</button>
+    <h3 id="modalTitle">Zhuldyz</h3>
+    <p id="modalDesc">Mailimet...</p>
+    <button onclick="closeModal()">Sapardy zhalghastyruu</button>
   </div>
 
   <!-- 3D Толық басқару: Оң/Сол, Жоғары/Төмен, Ұшу -->
@@ -88,12 +88,12 @@
     
     <!-- Жоғары / Төмен биіктік батырмалары -->
     <div class="col-group">
-      <div class="c-btn vert-btn" id="upBtn">▲ ҮСТІ</div>
-      <div class="c-btn vert-btn" id="downBtn">▼ АСТЫ</div>
+      <div class="c-btn vert-btn" id="upBtn">▲ UISTI</div>
+      <div class="c-btn vert-btn" id="downBtn">▼ ASTY</div>
     </div>
 
     <div class="btn-group">
-      <div class="c-btn gas-btn" id="gasBtn">ҰШУ</div>
+      <div class="c-btn gas-btn" id="gasBtn">USHUU</div>
     </div>
   </div>
 
@@ -207,13 +207,13 @@
     // 4. ТЕМІРҚАЗЫҚ ЖӘНЕ ЖЕТІҚАРАҚШЫ (3D ЖҰЛДЫЗДАР)
     const starSpheres = [];
     const rawStars = [
-      { name: "1. Күш", x: -60, y: 15, z: 20, desc: "Шөміштің шеткі күзетшісі. Жігермен бірге Темірқазықты тура көрсетеді." },
-      { name: "2. Жігер", x: -65, y: 0, z: -25, desc: "Шөміштің түбіндегі орнықты жұлдыз. Бағдар нұсқаушы." },
-      { name: "3. Қайрат", x: -20, y: -10, z: -30, desc: "Шөміш табағының мықты тұғыры." },
-      { name: "4. Қуат", x: -15, y: 10, z: 15, desc: "Ожау мен сапты байланыстырып тұрған қуатты түйін." },
-      { name: "5. Ырық", x: 25, y: 5, z: 30, desc: "Саптың бастауы, шоқтың ең жарық әрі ырықты жұлдызы." },
-      { name: "6. Ерік", x: 60, y: 18, z: 50, desc: "Сап ортасы. Қасында Балапан жұлдызы бар." },
-      { name: "7. Дес (Шұнақ)", x: 95, y: 25, z: 75, desc: "Саптың ең ұшы. Түнгі мезгілді өлшейтін аспан сағаты." }
+      { name: "1. Kuish", x: -60, y: 15, z: 20, desc: "Shuoimishtign shetki kuizetshisi. Zhigermen birge Temirqazyqty tuura kuoirsetedi." },
+      { name: "2. Zhiger", x: -65, y: 0, z: -25, desc: "Shuoimishtign tuibindegi ornyqty zhuldyz. Baghdar nusqauushy." },
+      { name: "3. Qajrat", x: -20, y: -10, z: -30, desc: "Shuoimish tabaghynygn myqty tughyry." },
+      { name: "4. Quuat", x: -15, y: 10, z: 15, desc: "Ozhauu men sapty bajlanystyryp turghan quuatty tuijin." },
+      { name: "5. Yryq", x: 25, y: 5, z: 30, desc: "Saptygn bastauuy, shoqtygn egn zharyq airi yryqty zhuldyzy." },
+      { name: "6. Erik", x: 60, y: 18, z: 50, desc: "Sap ortasy. Qasynda Balapan zhuldyzy bar." },
+      { name: "7. Des (Shunaq)", x: 95, y: 25, z: 75, desc: "Saptygn egn ushy. Tuingi mezgildi uoilshejtin aspan saghaty." }
     ];
 
     const starSphereGeo = new THREE.SphereGeometry(2.6, 16, 16);
@@ -356,12 +356,12 @@
         const nextStar = starSpheres.find(s => !s.visited);
         if (nextStar) {
           const dist = Math.round(shipGroup.position.distanceTo(nextStar.mesh.position));
-          document.getElementById("compassHint").innerText = `🧭 БАҒЫТ: ${nextStar.data.name} (${dist} қашықтық)`;
+          document.getElementById("compassHint").innerText = `🧭 BAGHYT: ${nextStar.data.name} (${dist} qashyqtyq)`;
         } else {
-          document.getElementById("compassHint").innerText = `🎉 Барлық жұлдыз зерттелді!`;
+          document.getElementById("compassHint").innerText = `🎉 Barlyq zhuldyz zertteldi!`;
         }
 
-        // Жұлдызға жақындауды тексеру
+        // Zhuldyzgha zhaqyndauudy tekseruu
         starSpheres.forEach(s => {
           const dist = shipGroup.position.distanceTo(s.mesh.position);
           if (dist < 9 && !s.visited) {
