@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Жетіқарақшы — Сандық Саяхаты</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+
+    body {
+      background: #040714;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #fef08a;
+    }
+
+    #gameCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+
+    /* Жоғарғы мәлімет тақтасы */
+    .hud-top {
+      position: absolute;
+      top: 15px;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .badge {
+      background: rgba(10, 16, 38, 0.85);
+      border: 1px solid rgba(251, 191, 36, 0.5);
+      backdrop-filter: blur(10px);
+      padding: 8px 18px;
+      border-radius: 20px;
+      font-size: 13px;
+      letter-spacing: 0.5px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Ыңғайлы басқару түймелері */
+    .controls {
+      position: absolute;
+      bottom: 25px;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 25px;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      pointer-events: auto;
+    }
+
+    .c-btn {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: rgba(18, 26, 56, 0.85);
+      border: 2px solid #fbbf24;
+      color: #fef08a;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 15px rgba(251, 191, 36, 0.25);
+      cursor: pointer;
+      user-select: none;
+    }
+    .c-btn:active {
+      background: #fbbf24;
+      color: #040714;
+      transform: scale(0.92);
+    }
+
+    .gas-btn {
+      width: 76px;
+      border-radius: 28px;
+      font-size: 14px;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+
+    /* Жұлдызды ашқанда шығатын әдемі қазақы терезе */
+    #infoModal {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(12, 18, 40, 0.95);
+      backdrop-filter: blur(14px);
+      border: 1.5px solid #fbbf24;
+      border-radius: 16px;
+      padding: 20px;
+      width: 88%;
+      max-width: 360px;
+      text-align: center;
+      display: none;
+      z-index: 50;
+      box-shadow: 0 0 40px rgba(251, 191, 36, 0.4);
+    }
+
+    #infoModal h3 {
+      color: #fbbf24;
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    #infoModal p {
+      color: #e2e8f0;
+      font-size: 13px;
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+
+    #infoModal button {
+      background: #fbbf24;
+      border: none;
+      color: #050816;
+      font-weight: bold;
+      padding: 8px 22px;
+      border-radius: 20px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="gameCanvas"></canvas>
+
+  <div class="hud-top">
+    <div class="badge">
+      <span>✨ Жұлдыздар:</span>
+      <strong id="counterText" style="color: #38bdf8;">0 / 7</strong>
+    </div>
+  </div>
+
+  <div id="infoModal">
+    <h3 id="modalTitle">Жұлдыз</h3>
+    <p id="modalDesc">Мәлімет...</p>
+    <button onclick="closeModal()">Сапарды жалғастыру</button>
+  </div>
+
+  <div class="controls">
+    <div class="btn-row">
+      <div class="c-btn" id="leftBtn">◄</div>
+      <div class="c-btn" id="rightBtn">►</div>
+    </div>
+    <div class="btn-row">
+      <div class="c-btn gas-btn" id="gasBtn">ҰШУ</div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const counterText = document.getElementById("counterText");
+    const infoModal = document.getElementById("infoModal");
+    const modalTitle = document.getElementById("modalTitle");
+    const modalDesc = document.getElementById("modalDesc");
+
+    let width = canvas.width = window.innerWidth;
+    let height = canvas.height = window.innerHeight;
+
+    // Кеме параметрлері
+    const ship = {
+      x: width / 2,
+      y: height * 0.78,
+      angle: -Math.PI / 2,
+      speed: 0,
+      maxSpeed: 4.2,
+      rotateLeft: false,
+      rotateRight: false,
+      thrust: false
+    };
+
+    // Қазақы таза атаулармен 7 жұлдыздың қатынастық нүктелері (0-ден 1-ге дейінгі масштаб)
+    const rawStars = [
+      { name: "1. Күш", rx: -0.32, ry: 0.05, desc: "Шөміштің шеткі күзетшісі. Жігермен бірге Темірқазықты тура көрсетеді." },
+      { name: "2. Жігер", rx: -0.34, ry: 0.22, desc: "Шөміштің түбіндегі орнықты жұлдыз. Бағдар нұсқаушы." },
+      { name: "3. Қайрат", rx: -0.10, ry: 0.24, desc: "Шөміш табағының мықты тұғыры." },
+      { name: "4. Қуат", rx: -0.08, ry: 0.07, desc: "Ожау мен сапты байланыстырып тұрған қуатты түйін." },
+      { name: "5. Ырық", rx: 0.10, ry: -0.01, desc: "Саптың бастауы, топтың ең жарық әрі ырықты жұлдызы." },
+      { name: "6. Ерік", rx: 0.23, ry: -0.09, desc: "Саптың ортасы. Жанында мергендер көзін сынайтын Балапан жұлдызы бар." },
+      { name: "7. Дес (Шұнақ)", rx: 0.35, ry: -0.18, desc: "Саптың ең ұшындағы оқшау жұлдыз. Түнгі мезгілді өлшейтін аспан сағаты." }
+    ];
+
+    let stars = [];
+    let visitedCount = 0;
+    let isPaused = false;
+
+    // Темірқазық және қос тұлпар
+    let northPole = { x: 0, y: 0 };
+    let horseAngle = 0;
+
+    // Экран өлшеміне сай Жетіқарақшыны ортаға бейімдеу (Жетінші жұлдыз ешқашан жоғалмайды!)
+    function layoutConstellation() {
+      const cx = width / 2;
+      const cy = height * 0.48; // Экранның ортасы
+      const scale = Math.min(width, height) * 0.95; // Экранға толық сыйғызу
+
+      stars = rawStars.map((s, idx) => ({
+        ...s,
+        id: idx,
+        x: cx + s.rx * scale,
+        y: cy + s.ry * scale,
+        visited: s.visited || false
+      }));
+
+      // Темірқазықты шөміштің үстіне қою
+      northPole.x = cx - 0.25 * scale;
+      northPole.y = cy - 0.35 * scale;
+    }
+    layoutConstellation();
+
+    window.addEventListener("resize", () => {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+      layoutConstellation();
+    });
+
+    // Ғарыштағы бөлшектер (Жұлдыз тозаңы және кеменің ізі)
+    const trailParticles = [];
+    const bgStars = [];
+    for (let i = 0; i < 80; i++) {
+      bgStars.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        r: Math.random() * 1.5 + 0.4,
+        twinkle: Math.random() * Math.PI * 2
+      });
+    }
+
+    // Экранды басып кемені меңзеу (сенсор немесе тышқан)
+    let pointerTarget = null;
+    function handlePointer(e) {
+      if (e.target.classList.contains('c-btn') || e.target.tagName === 'BUTTON') return;
+      const px = e.touches ? e.touches[0].clientX : e.clientX;
+      const py = e.touches ? e.touches[0].clientY : e.clientY;
+      pointerTarget = { x: px, y: py };
+    }
+    window.addEventListener("pointerdown", handlePointer);
+    window.addEventListener("pointermove", (e) => { if (pointerTarget) handlePointer(e); });
+    window.addEventListener("pointerup", () => { pointerTarget = null; });
+
+    // Батырмаларды байланыстыру
+    const bindBtn = (id, prop) => {
+      const el = document.getElementById(id);
+      el.addEventListener("pointerdown", (e) => { e.stopPropagation(); ship[prop] = true; });
+      el.addEventListener("pointerup", () => { ship[prop] = false; });
+      el.addEventListener("pointerleave", () => { ship[prop] = false; });
+    };
+    bindBtn("leftBtn", "rotateLeft");
+    bindBtn("rightBtn", "rotateRight");
+    bindBtn("gasBtn", "thrust");
+
+    function closeModal() {
+      infoModal.style.display = "none";
+      isPaused = false;
+    }
+
+    // Ойын циклі
+    function update() {
+      if (!isPaused) {
+        // Бағыттау
+        if (pointerTarget) {
+          const dx = pointerTarget.x - ship.x;
+          const dy = pointerTarget.y - ship.y;
+          const dist = Math.hypot(dx, dy);
+
+          if (dist > 30) {
+            const targetAngle = Math.atan2(dy, dx);
+            let diff = targetAngle - ship.angle;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+
+            ship.angle += diff * 0.08;
+            ship.speed = Math.min(ship.speed + 0.15, ship.maxSpeed);
+            ship.thrust = true;
+          } else {
+            ship.thrust = false;
+          }
+        } else {
+          if (ship.rotateLeft) ship.angle -= 0.055;
+          if (ship.rotateRight) ship.angle += 0.055;
+          if (ship.thrust) {
+            ship.speed = Math.min(ship.speed + 0.12, ship.maxSpeed);
+          } else {
+            ship.speed *= 0.95;
+          }
+        }
+
+        ship.x += Math.cos(ship.angle) * ship.speed;
+        ship.y += Math.sin(ship.angle) * ship.speed;
+
+        // Шеттерден шықпау
+        ship.x = Math.max(25, Math.min(width - 25, ship.x));
+        ship.y = Math.max(25, Math.min(height - 25, ship.y));
+
+        // Кеменің алтын ізі (Бөлшектер)
+        if (ship.thrust || ship.speed > 1) {
+          trailParticles.push({
+            x: ship.x - Math.cos(ship.angle) * 15,
+            y: ship.y - Math.sin(ship.angle) * 15,
+            alpha: 1,
+            size: Math.random() * 3 + 1
+          });
+        }
+
+        // Қос тұлпардың Темірқазықты айналуы
+        horseAngle += 0.01;
+
+        // Жұлдыздарға жақындауды тексеру
+        stars.forEach(star => {
+          const d = Math.hypot(ship.x - star.x, ship.y - star.y);
+          if (d < 35 && !star.visited) {
+            star.visited = true;
+            visitedCount++;
+            counterText.innerText = `${visitedCount} / 7`;
+            isPaused = true;
+            modalTitle.innerText = star.name;
+            modalDesc.innerText = star.desc;
+            infoModal.style.display = "block";
+
+            // Егер барлығы ашылса
+            if (visitedCount === 7) {
+              modalTitle.innerText = "🎉 Жетіқарақшы Зерттелді!";
+              modalDesc.innerText = "Керемет! Сіз барлық қарақшы жұлдыздардың құпиясын аштыңыз. Енді Темірқазық бағдары сізге әрдайым жол көрсетпек!";
+            }
+          }
+        });
+      }
+
+      // Бөлшектерді жаңарту
+      for (let i = trailParticles.length - 1; i >= 0; i--) {
+        const p = trailParticles[i];
+        p.alpha -= 0.03;
+        if (p.alpha <= 0) trailParticles.splice(i, 1);
+      }
+
+      draw();
+      requestAnimationFrame(update);
+    }
+
+    // Суреттеу бөлімі
+    function draw() {
+      // 1. Көкшіл-күлгін терең ғарыш кеңістігі
+      const bgGrad = ctx.createRadialGradient(width/2, height/2, 40, width/2, height/2, width * 0.85);
+      bgGrad.addColorStop(0, "#0c1435");
+      bgGrad.addColorStop(0.5, "#060a1f");
+      bgGrad.addColorStop(1, "#02040c");
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, width, height);
+
+      // 2. Фондағы ұсақ жымыңдаған жұлдыздар
+      bgStars.forEach(s => {
+        s.twinkle += 0.03;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(254, 240, 138, ${0.3 + Math.sin(s.twinkle) * 0.35})`;
+        ctx.fill();
+      });
+
+      // 3. Темірқазық (Алтын қазық) және Ақбозат пен Көкбозат
+      ctx.beginPath();
+      ctx.arc(northPole.x, northPole.y, 11, 0, Math.PI * 2);
+      ctx.fillStyle = "#facc15";
+      ctx.shadowColor = "#facc15";
+      ctx.shadowBlur = 20;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.font = "11px sans-serif";
+      ctx.fillStyle = "#fef08a";
+      ctx.fillText("Темірқазық", northPole.x - 28, northPole.y - 16);
+
+      // Қос тұлпар
+      const hDist = 38;
+      const horses = [
+        { name: "Ақбозат", col: "#bae6fd", a: horseAngle },
+        { name: "Көкбозат", col: "#93c5fd", a: horseAngle + Math.PI }
+      ];
+      horses.forEach(h => {
+        const hx = northPole.x + Math.cos(h.a) * hDist;
+        const hy = northPole.y + Math.sin(h.a) * hDist;
+
+        // Жібек арқан
+        ctx.strokeStyle = "rgba(251, 191, 36, 0.25)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(northPole.x, northPole.y);
+        ctx.lineTo(hx, hy);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(hx, hy, 4.5, 0, Math.PI * 2);
+        ctx.fillStyle = h.col;
+        ctx.fill();
+      });
+
+      // 4. Жетіқарақшы шөмішінің сызықтары
+      ctx.strokeStyle = "rgba(251, 191, 36, 0.3)";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      // Ожауы
+      ctx.moveTo(stars[0].x, stars[0].y);
+      ctx.lineTo(stars[1].x, stars[1].y);
+      ctx.lineTo(stars[2].x, stars[2].y);
+      ctx.lineTo(stars[3].x, stars[3].y);
+      ctx.lineTo(stars[0].x, stars[0].y);
+      // Сабы (7-жұлдызға дейін барады)
+      ctx.moveTo(stars[3].x, stars[3].y);
+      ctx.lineTo(stars[4].x, stars[4].y);
+      ctx.lineTo(stars[5].x, stars[5].y);
+      ctx.lineTo(stars[6].x, stars[6].y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // 5. Жетіқарақшы жұлдыздары (7-еуі де анық көрінеді)
+      stars.forEach(s => {
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.visited ? 10 : 7, 0, Math.PI * 2);
+        ctx.fillStyle = s.visited ? "#38bdf8" : "#fbbf24";
+        ctx.shadowColor = s.visited ? "#38bdf8" : "#fbbf24";
+        ctx.shadowBlur = s.visited ? 18 : 10;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        ctx.font = "11px sans-serif";
+        ctx.fillStyle = s.visited ? "#7dd3fc" : "#fde68a";
+        ctx.fillText(s.name.split(' ')[1], s.x + 10, s.y + 4);
+      });
+
+      // 6. Кемеден шығатын алтын түйіршіктер ізі
+      trailParticles.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(251, 191, 36, ${p.alpha})`;
+        ctx.fill();
+      });
+
+      // 7. Ойыншының «Сандық-кемесі»
+      ctx.save();
+      ctx.translate(ship.x, ship.y);
+      ctx.rotate(ship.angle + Math.PI / 2);
+
+      // Қозғалтқыштың көгілдір оты
+      if (ship.thrust || ship.speed > 0.8) {
+        ctx.fillStyle = "#38bdf8";
+        ctx.shadowColor = "#38bdf8";
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.moveTo(-5, 14);
+        ctx.lineTo(5, 14);
+        ctx.lineTo(0, 24 + Math.random() * 6);
+        ctx.closePath();
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      // Сандықтың ағаш корпусы
+      ctx.fillStyle = "#301809";
+      ctx.strokeStyle = "#fbbf24";
+      ctx.lineWidth = 1.8;
+      ctx.fillRect(-12, -15, 24, 30);
+      ctx.strokeRect(-12, -15, 24, 30);
+
+      // Сандықтың алтын құлыбы мен қақпағы
+      ctx.fillStyle = "#fbbf24";
+      ctx.fillRect(-12, -2, 24, 3);
+      ctx.beginPath();
+      ctx.arc(0, -1, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    update();
+  </script>
+</body>
+</html>
